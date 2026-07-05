@@ -1,0 +1,7 @@
+{
+  "extends": "@horogen/config/typescript/base",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["src", "test"]
+}
