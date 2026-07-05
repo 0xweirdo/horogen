@@ -95,6 +95,7 @@ cd ai && pytest
 ## สถานะปัจจุบัน
 
 - [x] เอกสารออกแบบ (PROJECT_SPEC.md / BUILD_PLAN.md)
-- [x] Phase 0 — Monorepo foundations (scaffold + config presets + contracts placeholder + compose + CI)
-  - ⚠️ docker compose ยังไม่ได้ verify บนเครื่อง dev — Docker Desktop ยังไม่ติดตั้ง
-- [ ] Phase 1 — Database layer ← **รอเจ้าของโปรเจกต์รีวิว Phase 0 ก่อน**
+- [x] Phase 0 — Monorepo foundations (scaffold + config presets + contracts placeholder + compose + CI เขียวบน GitHub)
+- [x] Phase 1 — Database layer (Prisma schema 8 ตาราง + migration + drift check + integration tests 9 ตัว)
+  - หมายเหตุ: postgres local อยู่ที่ host port **5433** (เครื่อง dev มี postgres native ชน 5432)
+- [ ] Phase 2 — API skeleton (NestJS + Clerk + contracts) ← **รอเจ้าของโปรเจกต์รีวิว Phase 1 ก่อน**
