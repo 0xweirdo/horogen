@@ -1,0 +1,26 @@
+# deps
+node_modules/
+.pnpm-store/
+
+# build outputs
+dist/
+.next/
+.turbo/
+coverage/
+
+# env — secret จริงอยู่ใน Doppler เท่านั้น
+.env
+.env.*
+!.env.example
+
+# python (ai/)
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# misc
+*.log
+.DS_Store
+Thumbs.db
