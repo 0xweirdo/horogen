@@ -9,6 +9,23 @@ on:
 jobs:
   lint-typecheck-test:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://heygen:heygen@localhost:5432/heygen_ci
+      SHADOW_DATABASE_URL: postgresql://heygen:heygen@localhost:5432/heygen_shadow
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: heygen
+          POSTGRES_PASSWORD: heygen
+          POSTGRES_DB: heygen_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U heygen -d heygen_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -20,6 +37,22 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      - name: Migration test (0 → latest บน postgres สด)
+        run: pnpm --filter @horogen/db run migrate:deploy
+
+      - name: Migration drift check (migrations ↔ schema.prisma ต้องตรงกัน)
+        run: |
+          PGPASSWORD=heygen psql -h localhost -U heygen -d heygen_ci -c "CREATE DATABASE heygen_shadow"
+          cd packages/db
+          pnpm exec prisma migrate diff \
+            --from-migrations ./prisma/migrations \
+            --to-schema-datamodel ./prisma/schema.prisma \
+            --shadow-database-url "$SHADOW_DATABASE_URL" \
+            --exit-code
+
+      - name: Seed smoke test
+        run: pnpm --filter @horogen/db run seed
 
       - run: pnpm turbo lint typecheck test
 
@@ -38,4 +71,3 @@ jobs:
   # docker-build: จะเพิ่มเมื่อ Dockerfile แรกเข้ามา
   #   - workers/encoder  → Phase 5
   #   - ai/worker        → Phase A2 (CI แยกฝั่ง Python: ruff + pytest)
-  # prisma migrate diff → Phase 1 (packages/db)
