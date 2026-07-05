@@ -1,1 +1,1 @@
-export { default } from '@heygen-th/config/eslint/base';
+export { default } from '@horogen/config/eslint/base';

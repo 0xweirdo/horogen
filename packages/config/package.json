@@ -1,5 +1,5 @@
 {
-  "name": "@heygen-th/config",
+  "name": "@horogen/config",
   "version": "0.0.1",
   "private": true,
   "type": "module",

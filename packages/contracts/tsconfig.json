@@ -1,5 +1,5 @@
 {
-  "extends": "@heygen-th/config/typescript/base",
+  "extends": "@horogen/config/typescript/base",
   "compilerOptions": {
     "noEmit": true
   },

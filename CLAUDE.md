@@ -56,9 +56,9 @@ pnpm turbo build
 docker compose up -d     # postgres + redis + minio (แทน R2)
 
 # database (packages/db)
-pnpm --filter @heygen-th/db prisma migrate dev
-pnpm --filter @heygen-th/db prisma migrate diff
-pnpm --filter @heygen-th/db seed
+pnpm --filter @horogen/db prisma migrate dev
+pnpm --filter @horogen/db prisma migrate diff
+pnpm --filter @horogen/db seed
 
 # Python (ai/) — โลกแยก
 cd ai && pytest
