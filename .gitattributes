@@ -1,0 +1,6 @@
+# บังคับ LF ทุกไฟล์ text — กัน diff ปลอมข้าม Windows/macOS/Linux/CI
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.mp4 binary
+*.wav binary
