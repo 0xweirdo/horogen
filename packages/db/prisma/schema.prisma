@@ -1,0 +1,154 @@
+// Schema ตาม docs/PROJECT_SPEC.md §4 (LOCKED)
+// สิ่งที่ Prisma model ไม่ได้ (CHECK, partial index, INCLUDE, partitioning, REVOKE, role)
+// อยู่ใน migration SQL — ห้ามใช้ `migrate dev` โดยไม่รีวิว SQL ที่ generate ก่อน commit
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clerkId   String    @unique @map("clerk_id")
+  email     String
+  plan      String    @default("free")
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  projects     Project[]
+  jobs         Job[]
+  assets       Asset[]
+  ledger       CreditLedger[]
+  subscription Subscription?
+  auditLogs    AuditLog[]
+
+  @@map("users")
+}
+
+model Project {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  title        String
+  scriptConfig Json      @default("{}") @map("script_config")
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User  @relation(fields: [userId], references: [id])
+  jobs Job[]
+
+  @@index([userId], map: "idx_projects_user")
+  @@map("projects")
+}
+
+model Job {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId      String   @map("project_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  // ค่าใน status/priority ถูกบังคับด้วย CHECK constraint ใน migration SQL
+  // + validate ที่ boundary ด้วย zod จาก @horogen/contracts
+  status         String   @default("QUEUED")
+  priority       String   @default("standard")
+  inputConfig    Json     @map("input_config")
+  outputAssetId  String?  @map("output_asset_id") @db.Uuid
+  modelVersion   String   @map("model_version")
+  gpuSeconds     Int      @default(0) @map("gpu_seconds")
+  costUsd        Decimal  @default(0) @map("cost_usd") @db.Decimal(10, 5)
+  failReason     String?  @map("fail_reason")
+  idempotencyKey String   @unique @map("idempotency_key")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  project       Project        @relation(fields: [projectId], references: [id])
+  user          User           @relation(fields: [userId], references: [id])
+  outputAsset   Asset?         @relation("JobOutput", fields: [outputAssetId], references: [id])
+  events        JobEvent[]
+  ledgerEntries CreditLedger[]
+
+  @@index([userId, createdAt(sort: Desc)], map: "idx_jobs_user_created")
+  // ใน DB จริงเป็น INDEX (created_at) INCLUDE (cost_usd, gpu_seconds) — Prisma
+  // introspect INCLUDE เป็นคอลัมน์ปกติ จึง declare 3 คอลัมน์ให้ drift check ตรงกัน
+  @@index([createdAt, costUsd, gpuSeconds], map: "idx_jobs_cost_month")
+  @@map("jobs")
+}
+
+// append-only — REVOKE UPDATE, DELETE จาก app_role ที่ระดับ DB (ดู migration SQL)
+// flow เงิน: hold → capture → refund ผ่านตารางนี้เท่านั้น / balance = SUM(delta_credits)
+model CreditLedger {
+  id           BigInt   @id @default(autoincrement())
+  userId       String   @map("user_id") @db.Uuid
+  deltaCredits Int      @map("delta_credits")
+  reason       String
+  jobId        String?  @map("job_id") @db.Uuid
+  stripeRef    String?  @map("stripe_ref")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id])
+  job  Job? @relation(fields: [jobId], references: [id])
+
+  @@index([userId, createdAt(sort: Desc)], map: "idx_ledger_user")
+  @@map("credit_ledger")
+}
+
+model Asset {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  kind       String
+  r2Key      String    @unique @map("r2_key")
+  bytes      BigInt?
+  sha256     String?
+  purgeAfter DateTime? @map("purge_after") @db.Timestamptz(6)
+  deletedAt  DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user       User  @relation(fields: [userId], references: [id])
+  outputJobs Job[] @relation("JobOutput")
+
+  @@map("assets")
+}
+
+// ทุก state transition ของ job — partitioned by month (ดู migration SQL)
+model JobEvent {
+  id        BigInt   @default(autoincrement())
+  jobId     String   @map("job_id") @db.Uuid
+  status    String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  job Job @relation(fields: [jobId], references: [id])
+
+  @@id([id, createdAt])
+  @@index([jobId, createdAt], map: "idx_job_events_job")
+  @@map("job_events")
+}
+
+model Subscription {
+  userId      String    @id @map("user_id") @db.Uuid
+  stripeSubId String    @unique @map("stripe_sub_id")
+  status      String
+  periodEnd   DateTime? @map("period_end") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("subscriptions")
+}
+
+model AuditLog {
+  id        BigInt   @id @default(autoincrement())
+  userId    String?  @map("user_id") @db.Uuid
+  action    String
+  detail    Json     @default("{}")
+  ip        String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt(sort: Desc)], map: "idx_audit_user")
+  @@map("audit_logs")
+}
