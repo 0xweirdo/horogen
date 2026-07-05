@@ -8,7 +8,8 @@ services:
       POSTGRES_PASSWORD: heygen
       POSTGRES_DB: heygen_dev
     ports:
-      - '5432:5432'
+      # host 5433 — เครื่อง dev อาจมี postgres native ฟัง 5432 อยู่แล้ว
+      - '5433:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

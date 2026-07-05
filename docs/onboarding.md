@@ -18,8 +18,13 @@
 git clone <repo-url> && cd heygen-th
 pnpm install
 cp .env.example .env          # ค่า local dev ใช้ได้เลย ไม่ต้องแก้
-docker compose up -d          # postgres :5432 / redis :6379 / minio :9000 (console :9001)
+cp packages/db/.env.example packages/db/.env
+docker compose up -d          # postgres :5433 / redis :6379 / minio :9000 (console :9001)
+pnpm --filter @horogen/db run migrate:deploy   # สร้าง schema
+pnpm --filter @horogen/db run seed             # dev user + demo project
 ```
+
+> postgres ถูก map ที่ host port **5433** (ไม่ใช่ 5432) — กันชนกับ postgres native ที่หลายเครื่องมีอยู่แล้ว
 
 ตรวจว่า infra ขึ้นครบ:
 
@@ -48,6 +53,6 @@ pnpm format:check
 
 ## Troubleshooting
 
-- **port ชน**: มี postgres/redis local อยู่แล้ว → หยุด service เดิม หรือแก้ port mapping ฝั่งซ้ายใน docker-compose.yml
+- **port ชน**: postgres ของเรา map ที่ 5433 อยู่แล้ว — ถ้า redis/minio ชน ให้แก้ port mapping ฝั่งซ้ายใน docker-compose.yml (แล้วแก้ .env ให้ตรง)
 - **pnpm install ล้ม engine-strict**: Node < 22 → อัปเกรด Node
 - **minio-init ล้ม**: `docker compose up -d --force-recreate minio-init` หลัง minio healthy
