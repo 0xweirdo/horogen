@@ -1,0 +1,14 @@
+# gitleaks config — extend default rules + allowlist ค่า placeholder ของ local dev
+# secret จริงทั้งหมดอยู่ใน Doppler — ไฟล์ด้านล่างมีแค่ค่า dev ที่ตั้งใจ commit
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Local-dev placeholder credentials (ตรงกับ docker-compose.yml — ไม่ใช่ secret จริง)"
+paths = [
+  '''\.env\.example$''',
+  '''docker-compose\.yml$''',
+  '''docs/onboarding\.md$''',
+]
+regexes = ['''minioadmin''', '''heygen:heygen@localhost''']
